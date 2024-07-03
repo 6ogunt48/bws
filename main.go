@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -52,7 +53,33 @@ func handleConnection(conn net.Conn) {
 
 	// construct file path
 	filePath := "www" + path
-	fileContent, err := os.ReadFile(filePath)
+
+	// Ensure the file path is withing the www directory
+	absoluteFilePath, err := filepath.Abs(filePath)
+	if err != nil {
+		fmt.Println("Error getting absolute path:", err)
+		notFoundResponse := "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n404 Not Found\n"
+		conn.Write([]byte(notFoundResponse))
+		return
+	}
+
+	wwwDir, err := filepath.Abs("www")
+	if err != nil {
+		fmt.Println("Error getting www directory absolute path:", err)
+		notFoundResponse := "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n404 Not Found\n"
+		conn.Write([]byte(notFoundResponse))
+		return
+	}
+
+	// Check if the file is within the www directory
+	if !strings.HasPrefix(absoluteFilePath, wwwDir) {
+		fmt.Println("Attempt to access file outside www directory:", absoluteFilePath)
+		notFoundResponse := "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n404 Not Found\n"
+		conn.Write([]byte(notFoundResponse))
+		return
+	}
+
+	fileContent, err := os.ReadFile(absoluteFilePath)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		notFoundResponse := "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\n404 Not Found\n"
